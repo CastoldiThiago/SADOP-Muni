@@ -1,0 +1,10 @@
+# SADOP-Muni — dependencias
+#
+# El paquete `core` solo necesita numpy y pandas; la interfaz web agrega
+# streamlit y plotly. Para trabajar solo sobre la lógica:
+#     pip install numpy pandas
+
+numpy>=1.26
+pandas>=2.0
+streamlit>=1.50
+plotly>=5.18

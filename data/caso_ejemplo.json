@@ -1,0 +1,143 @@
+{
+  "titulo": "Priorización de obras públicas — Plan de Obras 2026",
+  "descripcion": "Caso de estudio de referencia. La Secretaría de Obras Públicas debe priorizar la ejecución de obras dentro del presupuesto del ejercicio. Los valores son estimaciones de anteproyecto y deben reemplazarse por datos de pliego antes de usar el resultado como insumo real de decisión.",
+  "decisor": "Secretaría de Obras Públicas (a validar con Concejo Deliberante)",
+  "alternativas": [
+    {
+      "id": "pavimentacion",
+      "nombre": "Pavimentación barrio periférico",
+      "descripcion": "Pavimento de hormigón en 20 cuadras, con cordón cuneta y desagües."
+    },
+    {
+      "id": "hospital",
+      "nombre": "Ampliación guardia hospital municipal",
+      "descripcion": "Nueva guardia de 24 h, sala de shock room y ampliación de consultorios."
+    },
+    {
+      "id": "escuela",
+      "nombre": "Refacción integral escuela primaria",
+      "descripcion": "Techos, instalación eléctrica, sanitarios y accesibilidad."
+    },
+    {
+      "id": "plaza",
+      "nombre": "Plaza y centro recreativo barrial",
+      "descripcion": "Puesta en valor de plaza con juegos, playón deportivo y forestación."
+    },
+    {
+      "id": "cloacas",
+      "nombre": "Red cloacal barrio sur",
+      "descripcion": "Extensión de red cloacal y conexión a colectora existente."
+    },
+    {
+      "id": "luminarias",
+      "nombre": "Recambio a luminarias LED",
+      "descripcion": "Recambio de luminarias de sodio a LED en avenida principal y accesos."
+    }
+  ],
+  "criterios": [
+    {
+      "id": "costo",
+      "nombre": "Costo total de obra",
+      "sentido": "min",
+      "unidad": "millones $",
+      "escala": "razon",
+      "descripcion": "Monto de contrato estimado a valores del anteproyecto.",
+      "umbral": 400
+    },
+    {
+      "id": "beneficiarios",
+      "nombre": "Población beneficiada",
+      "sentido": "max",
+      "unidad": "habitantes",
+      "escala": "razon",
+      "descripcion": "Habitantes alcanzados de forma directa por la obra.",
+      "umbral": null
+    },
+    {
+      "id": "plazo",
+      "nombre": "Plazo de ejecución",
+      "sentido": "min",
+      "unidad": "meses",
+      "escala": "razon",
+      "descripcion": "Plazo de obra previsto en el pliego.",
+      "umbral": null
+    },
+    {
+      "id": "urgencia",
+      "nombre": "Urgencia social",
+      "sentido": "max",
+      "unidad": "1-5",
+      "escala": "ordinal",
+      "descripcion": "Prioridad relativa asignada según reclamos vecinales y diagnóstico social.",
+      "umbral": 3
+    },
+    {
+      "id": "ambiental",
+      "nombre": "Impacto ambiental negativo",
+      "sentido": "min",
+      "unidad": "1-5",
+      "escala": "ordinal",
+      "descripcion": "Afectación estimada durante y después de la obra (1 = despreciable, 5 = severa).",
+      "umbral": null
+    },
+    {
+      "id": "mantenimiento",
+      "nombre": "Costo de mantenimiento anual",
+      "sentido": "min",
+      "unidad": "millones $/año",
+      "escala": "razon",
+      "descripcion": "Erogación anual que la obra compromete una vez finalizada.",
+      "umbral": null
+    }
+  ],
+  "evaluaciones": {
+    "pavimentacion": {
+      "costo": 185,
+      "beneficiarios": 4200,
+      "plazo": 10,
+      "urgencia": 4,
+      "ambiental": 3,
+      "mantenimiento": 6.5
+    },
+    "hospital": {
+      "costo": 420,
+      "beneficiarios": 12000,
+      "plazo": 18,
+      "urgencia": 5,
+      "ambiental": 2,
+      "mantenimiento": 22.0
+    },
+    "escuela": {
+      "costo": 95,
+      "beneficiarios": 850,
+      "plazo": 6,
+      "urgencia": 4,
+      "ambiental": 1,
+      "mantenimiento": 3.2
+    },
+    "plaza": {
+      "costo": 62,
+      "beneficiarios": 2300,
+      "plazo": 5,
+      "urgencia": 2,
+      "ambiental": 2,
+      "mantenimiento": 4.8
+    },
+    "cloacas": {
+      "costo": 310,
+      "beneficiarios": 3600,
+      "plazo": 14,
+      "urgencia": 5,
+      "ambiental": 4,
+      "mantenimiento": 9.0
+    },
+    "luminarias": {
+      "costo": 48,
+      "beneficiarios": 9500,
+      "plazo": 3,
+      "urgencia": 3,
+      "ambiental": 1,
+      "mantenimiento": 2.1
+    }
+  }
+}
