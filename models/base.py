@@ -1,10 +1,10 @@
 """Contrato común de los métodos de evaluación DMD.
 
-Este módulo **no implementa ningún método**: define la interfaz que tendrán
-que cumplir Ponderación Lineal, AHP, TOPSIS o el que se elija más adelante,
-para que la interfaz y el preanálisis no dependan de esa decisión.
+Este módulo **no implementa ningún método**: define la interfaz que cumplen
+Ponderación Lineal y TOPSIS (y cualquiera que se agregue), para que la
+interfaz y el preanálisis no dependan del método elegido.
 
-Para agregar un método después alcanza con:
+Para agregar un método alcanza con:
 
 .. code-block:: python
 
@@ -26,9 +26,10 @@ from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 import numpy as np
+import pandas as pd
 
 from core.modelo import ProblemaDecision
-from core.normalizacion import PoliticaMinimizar, Procedimiento, normalizar
+from core.normalizacion import PoliticaMinimizar, Procedimiento, escalar, normalizar
 
 
 class ErrorDeEvaluacion(ValueError):
@@ -99,6 +100,20 @@ class ContextoEvaluacion:
             self.politica,
         )
 
+    def matriz_escalada(self) -> np.ndarray:
+        """Matriz normalizada sin orientar: cada criterio conserva su sentido."""
+        return escalar(self.matriz_cruda(), self.procedimiento)
+
+    def rotular(self, M: np.ndarray, columnas: list[str] | None = None) -> pd.DataFrame:
+        """Matriz intermedia como DataFrame, para el paso a paso en la interfaz.
+
+        Por defecto las columnas son los criterios; las filas, siempre las
+        alternativas evaluadas.
+        """
+        if columnas is None:
+            columnas = [c.nombre for c in self.problema.criterios]
+        return pd.DataFrame(M, index=self.nombres, columns=columnas)
+
 
 @dataclass
 class Resultado:
@@ -120,7 +135,6 @@ class Resultado:
 
     def ranking(self) -> list[tuple[int, str, float]]:
         """``(posición, nombre, puntaje)`` de mejor a peor."""
-        pos = {fila: k for k, fila in enumerate(self.orden)}
         pares = sorted(
             zip(self.nombres, self.puntajes, strict=False),
             key=lambda p: p[1],
@@ -131,12 +145,27 @@ class Resultado:
 
 @runtime_checkable
 class MetodoDMD(Protocol):
-    """Interfaz que debe cumplir todo método de evaluación."""
+    """Interfaz que debe cumplir todo método de evaluación.
+
+    Opcionalmente, un método declara ``usa_procedimiento = False`` o
+    ``usa_politica = False`` si no depende de esas opciones del contexto; la
+    interfaz y el análisis de escenarios las omiten en ese caso.
+    """
 
     id: str
     nombre: str
 
     def evaluar(self, ctx: ContextoEvaluacion) -> Resultado: ...
+
+
+def usa_procedimiento(metodo: MetodoDMD) -> bool:
+    """Si el resultado del método depende de la normalización elegida."""
+    return getattr(metodo, "usa_procedimiento", True)
+
+
+def usa_politica(metodo: MetodoDMD) -> bool:
+    """Si el resultado depende de la política para criterios a minimizar."""
+    return getattr(metodo, "usa_politica", True)
 
 
 _REGISTRO: dict[str, type] = {}
@@ -153,19 +182,22 @@ def registrar(cls: type) -> type:
 
 
 def metodos_disponibles() -> dict[str, type]:
-    """Métodos registrados, por id. Vacío hasta que se implemente el primero."""
+    """Métodos registrados, por id."""
     return dict(_REGISTRO)
 
 
-def obtener(id_metodo: str) -> MetodoDMD:
-    """Instancia el método registrado con ese id."""
+def obtener(id_metodo: str, **opciones: object) -> MetodoDMD:
+    """Instancia el método registrado con ese id.
+
+    ``opciones`` se pasan al constructor (por ejemplo, la métrica de TOPSIS).
+    """
     if id_metodo not in _REGISTRO:
         disponibles = ", ".join(sorted(_REGISTRO)) or "ninguno todavía"
         raise KeyError(
             f"No hay un método registrado con id '{id_metodo}'. "
             f"Disponibles: {disponibles}."
         )
-    return _REGISTRO[id_metodo]()
+    return _REGISTRO[id_metodo](**opciones)
 
 
 def ordenar_por_puntaje(filas: list[int], puntajes: np.ndarray) -> list[int]:

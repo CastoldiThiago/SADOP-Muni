@@ -63,6 +63,23 @@ class Criterio:
         return f"{self.nombre} [{self.unidad}]" if self.unidad else self.nombre
 
 
+class ModoPesos(str, Enum):
+    """Cómo se asignan los pesos de los criterios (Cap. 12, sección 11)."""
+
+    #: El decisor asigna cada peso directamente.
+    DIRECTO = "directo"
+    #: Comparaciones de a pares entre criterios, escala de Saaty (AHP).
+    AHP = "ahp"
+
+    @property
+    def etiqueta(self) -> str:
+        return (
+            "Asignación directa"
+            if self is ModoPesos.DIRECTO
+            else "Comparaciones pareadas (AHP)"
+        )
+
+
 @dataclass
 class Alternativa:
     """Una alternativa de decisión (fila de la matriz): una obra pública."""
@@ -91,6 +108,23 @@ class ProblemaDecision:
     alternativas: list[Alternativa] = field(default_factory=list)
     criterios: list[Criterio] = field(default_factory=list)
     evaluaciones: dict[tuple[str, str], float] = field(default_factory=dict)
+    modo_pesos: ModoPesos = ModoPesos.DIRECTO
+    #: Pesos por asignación directa, por id de criterio, en la escala que use
+    #: el decisor (por ejemplo 1 a 10). Se normalizan al calcularlos.
+    pesos_directos: dict[str, float] = field(default_factory=dict)
+    #: Juicios AHP: ``(id_i, id_j) -> a_ij``, cuánto más importante es el
+    #: criterio i que el j en la escala de Saaty. Alcanza con un juicio por
+    #: par; el recíproco se deduce.
+    comparaciones: dict[tuple[str, str], float] = field(default_factory=dict)
+    #: Juicios AHP entre alternativas, por criterio: ``id_criterio ->
+    #: {(id_alt_i, id_alt_j): a_ij}``. Un criterio que figura acá se evalúa
+    #: por comparaciones pareadas en AHP; los demás, con los datos de la matriz.
+    comparaciones_alternativas: dict[str, dict[tuple[str, str], float]] = field(
+        default_factory=dict
+    )
+
+    def __post_init__(self) -> None:
+        self.modo_pesos = ModoPesos(self.modo_pesos)
 
     # ---------------------------------------------------------------- acceso
 
@@ -135,12 +169,21 @@ class ProblemaDecision:
         self.evaluaciones = {
             k: v for k, v in self.evaluaciones.items() if k[0] != id_alt
         }
+        self.comparaciones_alternativas = {
+            c: {k: v for k, v in juicios.items() if id_alt not in k}
+            for c, juicios in self.comparaciones_alternativas.items()
+        }
 
     def quitar_criterio(self, id_crit: str) -> None:
         self.criterios = [c for c in self.criterios if c.id != id_crit]
         self.evaluaciones = {
             k: v for k, v in self.evaluaciones.items() if k[1] != id_crit
         }
+        self.pesos_directos.pop(id_crit, None)
+        self.comparaciones = {
+            k: v for k, v in self.comparaciones.items() if id_crit not in k
+        }
+        self.comparaciones_alternativas.pop(id_crit, None)
 
     def evaluar(self, id_alt: str, id_crit: str, valor: float) -> None:
         """Carga la evaluación a_ij de una alternativa en un criterio."""

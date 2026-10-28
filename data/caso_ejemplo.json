@@ -139,5 +139,43 @@
       "ambiental": 1,
       "mantenimiento": 2.1
     }
+  },
+  "pesos": {
+    "modo": "directo",
+    "directos": {
+      "costo": 8,
+      "beneficiarios": 7,
+      "plazo": 4,
+      "urgencia": 9,
+      "ambiental": 5,
+      "mantenimiento": 6
+    },
+    "comparaciones": {
+      "urgencia": {
+        "costo": 2,
+        "beneficiarios": 2,
+        "plazo": 5,
+        "ambiental": 3,
+        "mantenimiento": 3
+      },
+      "costo": {
+        "beneficiarios": 1,
+        "plazo": 3,
+        "ambiental": 2,
+        "mantenimiento": 2
+      },
+      "beneficiarios": {
+        "plazo": 3,
+        "ambiental": 2,
+        "mantenimiento": 2
+      },
+      "ambiental": {
+        "plazo": 2
+      },
+      "mantenimiento": {
+        "plazo": 2,
+        "ambiental": 1
+      }
+    }
   }
 }

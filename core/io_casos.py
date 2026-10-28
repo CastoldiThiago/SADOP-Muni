@@ -7,8 +7,15 @@ Formato del archivo::
       "alternativas": [{"id": "...", "nombre": "...", "descripcion": "..."}],
       "criterios":    [{"id": "...", "nombre": "...", "sentido": "min|max",
                         "unidad": "...", "escala": "...", "umbral": 0}],
-      "evaluaciones": {"<id_alt>": {"<id_crit>": 0.0}}
+      "evaluaciones": {"<id_alt>": {"<id_crit>": 0.0}},
+      "pesos": {"modo": "directo|ahp",
+                "directos": {"<id_crit>": 0.0},
+                "comparaciones": {"<id_crit_i>": {"<id_crit_j>": 0.0}},
+                "alternativas": {"<id_crit>": {"<id_alt_i>": {"<id_alt_j>": 0.0}}}}
     }
+
+El bloque ``pesos`` es opcional, para seguir leyendo casos guardados antes de
+que existiera la asignación de pesos.
 """
 
 from __future__ import annotations
@@ -16,7 +23,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .modelo import Alternativa, Criterio, ProblemaDecision
+from .modelo import Alternativa, Criterio, ModoPesos, ProblemaDecision
 
 RAIZ = Path(__file__).resolve().parent.parent
 DIR_DATOS = RAIZ / "data"
@@ -51,6 +58,21 @@ def desde_dict(datos: dict) -> ProblemaDecision:
     for id_alt, fila in datos.get("evaluaciones", {}).items():
         for id_crit, valor in fila.items():
             problema.evaluar(id_alt, id_crit, valor)
+
+    pesos = datos.get("pesos", {})
+    problema.modo_pesos = ModoPesos(pesos.get("modo", "directo"))
+    problema.pesos_directos = {
+        k: float(v) for k, v in pesos.get("directos", {}).items()
+    }
+    problema.comparaciones = {
+        (i, j): float(v)
+        for i, fila in pesos.get("comparaciones", {}).items()
+        for j, v in fila.items()
+    }
+    problema.comparaciones_alternativas = {
+        id_crit: {(i, j): float(v) for i, fila in juicios.items() for j, v in fila.items()}
+        for id_crit, juicios in pesos.get("alternativas", {}).items()
+    }
     return problema
 
 
@@ -84,7 +106,23 @@ def a_dict(problema: ProblemaDecision) -> dict:
             }
             for a in problema.alternativas
         },
+        "pesos": {
+            "modo": problema.modo_pesos.value,
+            "directos": dict(problema.pesos_directos),
+            "comparaciones": _anidar(problema.comparaciones),
+            "alternativas": {
+                c: _anidar(juicios)
+                for c, juicios in problema.comparaciones_alternativas.items()
+            },
+        },
     }
+
+
+def _anidar(pares: dict[tuple[str, str], float]) -> dict[str, dict[str, float]]:
+    anidado: dict[str, dict[str, float]] = {}
+    for (i, j), valor in pares.items():
+        anidado.setdefault(i, {})[j] = valor
+    return anidado
 
 
 def cargar(ruta: str | Path = CASO_EJEMPLO) -> ProblemaDecision:

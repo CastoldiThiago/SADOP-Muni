@@ -161,6 +161,16 @@ _PROCEDIMIENTOS = {
 }
 
 
+def escalar(A: np.ndarray, procedimiento: Procedimiento) -> np.ndarray:
+    """Aplica el procedimiento sin orientar los criterios.
+
+    Cada columna conserva su sentido original (en las de minimizar, menos
+    sigue siendo mejor). Es lo que necesita TOPSIS cuando el ideal se toma
+    según el sentido de cada criterio.
+    """
+    return _PROCEDIMIENTOS[Procedimiento(procedimiento)](A)
+
+
 def normalizar(
     A: np.ndarray,
     sentidos: list[Sentido],
