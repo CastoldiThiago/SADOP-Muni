@@ -8,6 +8,8 @@ en principio, para resolver un problema de DMD".
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Iterable
@@ -283,6 +285,24 @@ class ProblemaDecision:
 
     def es_valido(self) -> bool:
         return not self.validar()
+
+
+def generar_id(nombre: str, usados: Iterable[str], prefijo: str = "item") -> str:
+    """Identificador corto y único derivado de un nombre.
+
+    Permite cargar alternativas y criterios escribiendo solo el nombre:
+    "Red cloacal barrio sur" da ``red_cloacal_barrio_sur``. Si el id ya está
+    en ``usados`` se le agrega un sufijo numérico; si el nombre no tiene letras
+    ni números se usa ``prefijo``.
+    """
+    base = unicodedata.normalize("NFKD", nombre).encode("ascii", "ignore").decode()
+    base = re.sub(r"[^a-z0-9]+", "_", base.lower()).strip("_")[:30].rstrip("_")
+    base = base or prefijo
+    usados = set(usados)
+    candidato, k = base, 2
+    while candidato in usados:
+        candidato, k = f"{base}_{k}", k + 1
+    return candidato
 
 
 def _duplicados(items: Iterable[str]) -> list[str]:

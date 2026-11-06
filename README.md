@@ -41,7 +41,7 @@ PATH.
 Para trabajar solo sobre la lógica alcanza con `numpy` y `pandas`.
 
 ```bash
-pytest                        # o: python tests/test_base.py / test_metodos.py
+pytest                        # o: python tests/test_base.py / test_metodos.py / test_app.py
 ```
 
 ## Estructura
@@ -65,8 +65,9 @@ SADOP-Muni/
 ├── data/caso_ejemplo.json    Caso de referencia: 6 obras, 6 criterios, pesos
 ├── tests/
 │   ├── test_base.py          Base independiente del método
-│   └── test_metodos.py       Pesos, métodos y sensibilidad vs. el capítulo
-└── docs/                     Planes y bibliografía
+│   ├── test_metodos.py       Pesos, métodos y sensibilidad vs. el capítulo
+│   └── test_app.py           Interfaz (AppTest): caso en blanco y pesos
+└── docs/                     Planes, bibliografía y entregas (informe y manual)
 ```
 
 ## Flujo de la interfaz
@@ -90,6 +91,14 @@ SADOP-Muni/
 
 Además del menú lateral, cada paso termina con botones para ir al anterior o
 al siguiente.
+
+El caso se descarga y se carga en JSON desde la barra lateral. **Nuevo caso en
+blanco** (con confirmación) borra alternativas, criterios, matriz y pesos y
+vuelve al paso 1 con las tablas vacías: alcanza con escribir el nombre de cada
+alternativa y criterio, porque el id se genera solo. **Restaurar caso de
+ejemplo** vuelve al caso de referencia.
+
+El uso detallado está en `docs/entregas/TPI - Manual de usuario.pdf`.
 
 ### AHP
 

@@ -13,7 +13,13 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core import cargar  # noqa: E402
-from core.modelo import Alternativa, Criterio, ProblemaDecision, Sentido  # noqa: E402
+from core.modelo import (  # noqa: E402
+    Alternativa,
+    Criterio,
+    ProblemaDecision,
+    Sentido,
+    generar_id,
+)
 from core.normalizacion import (  # noqa: E402
     PoliticaMinimizar,
     Procedimiento,
@@ -222,6 +228,23 @@ def test_quitar_criterio_limpia_sus_evaluaciones():
     p.evaluar("a1", "c1", 10)
     p.quitar_criterio("c1")
     assert p.evaluaciones == {}
+
+
+def test_generar_id_a_partir_del_nombre():
+    assert generar_id("Red cloacal barrio sur", []) == "red_cloacal_barrio_sur"
+    # Sin acentos ni signos, para que el id sirva de clave en el JSON.
+    assert generar_id("Ampliación guardia (24 h)", []) == "ampliacion_guardia_24_h"
+    assert len(generar_id("x" * 80, [])) <= 30
+
+
+def test_generar_id_no_repite_los_usados():
+    assert generar_id("Costo", ["costo"]) == "costo_2"
+    assert generar_id("Costo", ["costo", "costo_2"]) == "costo_3"
+
+
+def test_generar_id_sin_letras_usa_el_prefijo():
+    assert generar_id("¿?", [], "criterio") == "criterio"
+    assert generar_id("", ["criterio"], "criterio") == "criterio_2"
 
 
 def test_caso_ejemplo_es_valido():

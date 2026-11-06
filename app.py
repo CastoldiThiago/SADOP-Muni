@@ -25,6 +25,7 @@ from core.modelo import (
     ModoPesos,
     ProblemaDecision,
     Sentido,
+    generar_id,
 )
 from core.normalizacion import (
     ErrorDeNormalizacion,
@@ -92,7 +93,7 @@ GRIS = "#8a8985"
 
 #: Prefijos de las claves de widgets que dependen del caso cargado. Se borran
 #: al cambiar de caso para que no pisen los datos nuevos con los anteriores.
-CLAVES_DEL_CASO = ("editor_", "ahp_", "ahpalt_", "pareado_")
+CLAVES_DEL_CASO = ("editor_", "ahp_", "ahpalt_", "pareado_", "modo_pesos")
 
 #: Posiciones de los controles de comparación de a pares: negativo, gana el
 #: elemento de la izquierda por ese factor; 1, igual importancia; positivo,
@@ -115,6 +116,38 @@ def cambiar_problema(nuevo: ProblemaDecision) -> None:
     st.session_state.problema = nuevo
 
 
+def _empezar_de_cero() -> None:
+    """Reemplaza el caso activo por uno vacío y lleva al paso 1 para cargarlo.
+
+    Corre como callback, antes de la próxima ejecución, porque cambia el paso
+    del menú lateral, que ya está dibujado cuando se toca el botón.
+    """
+    cambiar_problema(ProblemaDecision(titulo="Nuevo caso"))
+    st.session_state.paso = PASOS[0]
+
+
+@st.dialog("Nuevo caso en blanco")
+def _confirmar_caso_nuevo() -> None:
+    st.write(
+        "Se borran las alternativas, los criterios, la matriz de decisión y los "
+        "pesos del caso actual, y se vuelve al paso 1 para cargar uno desde cero."
+    )
+    st.caption(
+        "Si querés conservar el caso actual, cancelá y descargalo antes con "
+        "**Descargar caso (JSON)**."
+    )
+    borrar, cancelar = st.columns(2)
+    if borrar.button(
+        "Borrar todo y empezar de cero",
+        type="primary",
+        on_click=_empezar_de_cero,
+        width="stretch",
+        key="nuevo_caso",
+    ) or cancelar.button("Cancelar", width="stretch", key="cancelar_nuevo_caso"):
+        # Cierra el diálogo y vuelve a dibujar toda la página con el caso nuevo.
+        st.rerun()
+
+
 # ------------------------------------------------------------------ paso 1
 
 
@@ -130,18 +163,31 @@ def paso_definicion(p: ProblemaDecision) -> None:
     p.descripcion = st.text_area("Descripción del problema", p.descripcion, height=90)
     p.decisor = st.text_input("Decisor", p.decisor)
 
+    if not p.alternativas and not p.criterios:
+        st.info(
+            "**Caso en blanco.** Cargá las alternativas y los criterios en las "
+            "tablas de abajo: cada tabla agrega una fila con el botón **+** o "
+            "haciendo clic en la fila vacía del final. Alcanza con escribir el "
+            "nombre, porque el id se genera solo. Hacen falta al menos 2 "
+            "alternativas y 2 criterios. Al terminar, tocá **Aplicar cambios**."
+        )
+
     st.subheader("Alternativas")
     st.caption("Las obras públicas entre las que hay que elegir.")
     alts = st.data_editor(
         pd.DataFrame(
-            [
-                {"id": a.id, "nombre": a.nombre, "descripcion": a.descripcion}
-                for a in p.alternativas
-            ]
+            {
+                "id": pd.Series([a.id for a in p.alternativas], dtype="string"),
+                "nombre": pd.Series([a.nombre for a in p.alternativas], dtype="string"),
+                "descripcion": pd.Series(
+                    [a.descripcion for a in p.alternativas], dtype="string"
+                ),
+            }
         ),
         num_rows="dynamic",
         width="stretch",
         key="editor_alternativas",
+        column_config={"id": _columna_id()},
     )
 
     st.subheader("Criterios")
@@ -151,31 +197,37 @@ def paso_definicion(p: ProblemaDecision) -> None:
         "aceptable para el preanálisis de satisfacción: una alternativa por "
         "debajo del mínimo o por encima del máximo queda descartada."
     )
+    # Columnas y tipos explícitos: con un caso en blanco no hay filas de las
+    # que deducirlos, y sin columnas la tabla no permitiría cargar nada.
+    cs = p.criterios
     crits = st.data_editor(
         pd.DataFrame(
-            [
-                {
-                    "id": c.id,
-                    "nombre": c.nombre,
-                    "sentido": c.sentido.value,
-                    "unidad": c.unidad,
-                    "escala": c.escala.value,
-                    "umbral_min": c.umbral_min,
-                    "umbral_max": c.umbral_max,
-                    "descripcion": c.descripcion,
-                }
-                for c in p.criterios
-            ]
+            {
+                "id": pd.Series([c.id for c in cs], dtype="string"),
+                "nombre": pd.Series([c.nombre for c in cs], dtype="string"),
+                "sentido": pd.Series([c.sentido.value for c in cs], dtype="string"),
+                "unidad": pd.Series([c.unidad for c in cs], dtype="string"),
+                "escala": pd.Series([c.escala.value for c in cs], dtype="string"),
+                "umbral_min": pd.Series([c.umbral_min for c in cs], dtype="float"),
+                "umbral_max": pd.Series([c.umbral_max for c in cs], dtype="float"),
+                "descripcion": pd.Series([c.descripcion for c in cs], dtype="string"),
+            }
         ),
         num_rows="dynamic",
         width="stretch",
         key="editor_criterios",
         column_config={
+            "id": _columna_id(),
             "sentido": st.column_config.SelectboxColumn(
-                options=[s.value for s in Sentido], required=True
+                options=[s.value for s in Sentido],
+                required=True,
+                default=Sentido.MAXIMIZAR.value,
+                help="max: conviene un valor alto. min: conviene un valor bajo.",
             ),
             "escala": st.column_config.SelectboxColumn(
-                options=[e.value for e in Escala], required=True
+                options=[e.value for e in Escala],
+                required=True,
+                default=Escala.RAZON.value,
             ),
             "umbral_min": st.column_config.NumberColumn(
                 "mínimo", help="Piso del rango aceptable. Vacío = sin piso."
@@ -208,8 +260,50 @@ def _hay_ediciones(clave: str) -> bool:
     return any(estado.get(k) for k in ("edited_rows", "added_rows", "deleted_rows"))
 
 
+def _columna_id() -> object:
+    return st.column_config.TextColumn(
+        "id",
+        help=(
+            "Identificador corto y único. Si lo dejás vacío, se genera a partir "
+            "del nombre al aplicar los cambios."
+        ),
+    )
+
+
 def _numero_o_nada(valor: object) -> float | None:
     return None if valor is None or pd.isna(valor) else float(valor)
+
+
+def _texto(valor: object) -> str:
+    """Texto de una celda del editor; las celdas vacías llegan como None o NA."""
+    return "" if valor is None or pd.isna(valor) else str(valor).strip()
+
+
+def _filas_con_id(tabla: pd.DataFrame, prefijo: str) -> list[tuple[str, str, pd.Series]]:
+    """``(id, nombre, fila)`` de cada fila que tenga id o nombre.
+
+    Las filas completamente vacías se ignoran. A las que no tienen id se les
+    genera uno a partir del nombre, sin repetir los que ya están en la tabla;
+    las que no tienen nombre usan el id como nombre.
+    """
+    filas = [(_texto(r.get("id")), _texto(r.get("nombre")), r) for _, r in tabla.iterrows()]
+    filas = [(i, n, r) for i, n, r in filas if i or n]
+    usados = [i for i, _, _ in filas if i]
+    resultado = []
+    for i, n, r in filas:
+        if not i:
+            i = generar_id(n, usados, prefijo)
+            usados.append(i)
+        resultado.append((i, n or i, r))
+    return resultado
+
+
+def _opcion(valor: object, tipo: type, defecto: object) -> object:
+    """Valor de un enum a partir de una celda, o ``defecto`` si está vacía o no es válida."""
+    try:
+        return tipo(_texto(valor))
+    except ValueError:
+        return defecto
 
 
 def _aplicar(p: ProblemaDecision, alts: pd.DataFrame, crits: pd.DataFrame) -> None:
@@ -217,27 +311,21 @@ def _aplicar(p: ProblemaDecision, alts: pd.DataFrame, crits: pd.DataFrame) -> No
     evaluaciones = dict(p.evaluaciones)
 
     p.alternativas = [
-        Alternativa(
-            id=str(r["id"]).strip(),
-            nombre=str(r["nombre"]).strip(),
-            descripcion=str(r.get("descripcion") or ""),
-        )
-        for _, r in alts.iterrows()
-        if str(r.get("id") or "").strip()
+        Alternativa(id=i, nombre=n, descripcion=_texto(r.get("descripcion")))
+        for i, n, r in _filas_con_id(alts, "alternativa")
     ]
     p.criterios = [
         Criterio(
-            id=str(r["id"]).strip(),
-            nombre=str(r["nombre"]).strip(),
-            sentido=str(r["sentido"]),
-            unidad=str(r.get("unidad") or ""),
-            escala=str(r.get("escala") or "razon"),
-            descripcion=str(r.get("descripcion") or ""),
+            id=i,
+            nombre=n,
+            sentido=_opcion(r.get("sentido"), Sentido, Sentido.MAXIMIZAR),
+            unidad=_texto(r.get("unidad")),
+            escala=_opcion(r.get("escala"), Escala, Escala.RAZON),
+            descripcion=_texto(r.get("descripcion")),
             umbral_min=_numero_o_nada(r.get("umbral_min")),
             umbral_max=_numero_o_nada(r.get("umbral_max")),
         )
-        for _, r in crits.iterrows()
-        if str(r.get("id") or "").strip()
+        for i, n, r in _filas_con_id(crits, "criterio")
     ]
     # Se descartan las evaluaciones cuyo criterio o alternativa ya no existe.
     validas = {(a, c) for a in p.ids_alternativas for c in p.ids_criterios}
@@ -398,13 +486,18 @@ def paso_pesos(p: ProblemaDecision) -> None:
         st.warning("Definí los criterios en el paso 1.")
         return
 
-    modos = list(ModoPesos)
+    # Clave fija y valor inicial tomado del caso. Con ``index`` calculado a
+    # partir de ``p.modo_pesos``, cada cambio de modo cambiaba la identidad del
+    # control y el clic siguiente se perdía: volver a la asignación directa
+    # pedía dos clics.
+    if "modo_pesos" not in st.session_state:
+        st.session_state.modo_pesos = p.modo_pesos
     p.modo_pesos = st.radio(
         "Cómo asignar los pesos",
-        modos,
-        index=modos.index(p.modo_pesos),
+        list(ModoPesos),
         format_func=lambda m: m.etiqueta,
         horizontal=True,
+        key="modo_pesos",
     )
 
     if p.modo_pesos is ModoPesos.DIRECTO:
@@ -446,7 +539,11 @@ def _pesos_directos(p: ProblemaDecision) -> None:
         pd.DataFrame(
             {
                 "criterio": [c.nombre for c in p.criterios],
-                "peso": [p.pesos_directos.get(c.id) for c in p.criterios],
+                # float: en un caso nuevo todos los pesos están vacíos y, sin
+                # tipo, la columna no se editaría como número.
+                "peso": pd.Series(
+                    [p.pesos_directos.get(c.id) for c in p.criterios], dtype="float"
+                ),
             }
         ),
         disabled=["criterio"],
@@ -1106,11 +1203,21 @@ def grafico_barrido(p: ProblemaDecision, b: Barrido) -> go.Figure:
                 hovertemplate="%{y:.3f}",
             )
         )
-        if etiquetar:
+    if etiquetar:
+        # Cada etiqueta va al final de su línea. Si dos obras terminan con el
+        # mismo puntaje (o casi), la de abajo se corre para que no se pisen.
+        finales = sorted(
+            ((float(b.puntajes[n].iloc[-1]), n) for n in b.puntajes.columns), reverse=True
+        )
+        cerca = 0.05 * (float(np.ptp(b.puntajes.to_numpy())) or 1.0)
+        anterior, corrimiento = None, 0
+        for valor, nombre in finales:
+            corrimiento = corrimiento - 14 if anterior is not None and anterior - valor < cerca else 0
             fig.add_annotation(
-                x=1.0, y=serie.iloc[-1], text=nombre, showarrow=False,
-                xanchor="left", xshift=6, font=dict(size=11),
+                x=1.0, y=valor, text=nombre, showarrow=False,
+                xanchor="left", xshift=6, yshift=corrimiento, font=dict(size=11),
             )
+            anterior = valor
     fig.update_layout(
         hovermode="x unified",
         height=420,
@@ -1210,6 +1317,8 @@ def main() -> None:
     if st.sidebar.button("Restaurar caso de ejemplo", width="stretch"):
         cambiar_problema(cargar())
         st.rerun()
+    if st.sidebar.button("Nuevo caso en blanco", width="stretch", key="abrir_nuevo_caso"):
+        _confirmar_caso_nuevo()
 
     {
         PASOS[0]: paso_definicion,

@@ -60,7 +60,8 @@ archivos reales.
 | 4.2 | Prueba de extremo a extremo con el caso por defecto | Recorrido de los 7 pasos | Hecho (sin capturas guardadas) |
 | 4.3 | Documentación | README | Hecho |
 | 4.4 | Reemplazar los valores del caso por datos reales de pliego | `data/` | Pendiente |
-| 4.5 | Informe / presentación para la defensa | — | Pendiente |
+| 4.5 | Informe final y manual de usuario | `docs/entregas/` (.docx y .pdf) | Hecho |
+| 4.6 | Caso en blanco para armar uno desde cero | Botón en la barra lateral, `tests/test_app.py` | Hecho |
 
 ---
 
