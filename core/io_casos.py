@@ -6,7 +6,8 @@ Formato del archivo::
       "titulo": "...", "descripcion": "...", "decisor": "...",
       "alternativas": [{"id": "...", "nombre": "...", "descripcion": "..."}],
       "criterios":    [{"id": "...", "nombre": "...", "sentido": "min|max",
-                        "unidad": "...", "escala": "...", "umbral": 0}],
+                        "unidad": "...", "escala": "...",
+                        "umbral_min": 0, "umbral_max": 0}],
       "evaluaciones": {"<id_alt>": {"<id_crit>": 0.0}},
       "pesos": {"modo": "directo|ahp",
                 "directos": {"<id_crit>": 0.0},
@@ -15,7 +16,9 @@ Formato del archivo::
     }
 
 El bloque ``pesos`` es opcional, para seguir leyendo casos guardados antes de
-que existiera la asignación de pesos.
+que existiera la asignación de pesos. Los casos viejos con un único
+``umbral`` también se leen: era un piso en los criterios a maximizar y un
+techo en los de minimizar.
 """
 
 from __future__ import annotations
@@ -23,7 +26,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .modelo import Alternativa, Criterio, ModoPesos, ProblemaDecision
+from .modelo import Alternativa, Criterio, ModoPesos, ProblemaDecision, Sentido
 
 RAIZ = Path(__file__).resolve().parent.parent
 DIR_DATOS = RAIZ / "data"
@@ -44,15 +47,23 @@ def desde_dict(datos: dict) -> ProblemaDecision:
             )
         )
     for c in datos.get("criterios", []):
+        sentido = Sentido(c.get("sentido", "max"))
+        minimo, maximo = c.get("umbral_min"), c.get("umbral_max")
+        if c.get("umbral") is not None and minimo is None and maximo is None:
+            if sentido is Sentido.MAXIMIZAR:
+                minimo = c["umbral"]
+            else:
+                maximo = c["umbral"]
         problema.agregar_criterio(
             Criterio(
                 id=c["id"],
                 nombre=c["nombre"],
-                sentido=c.get("sentido", "max"),
+                sentido=sentido,
                 unidad=c.get("unidad", ""),
                 escala=c.get("escala", "razon"),
                 descripcion=c.get("descripcion", ""),
-                umbral=c.get("umbral"),
+                umbral_min=minimo,
+                umbral_max=maximo,
             )
         )
     for id_alt, fila in datos.get("evaluaciones", {}).items():
@@ -94,7 +105,8 @@ def a_dict(problema: ProblemaDecision) -> dict:
                 "unidad": c.unidad,
                 "escala": c.escala.value,
                 "descripcion": c.descripcion,
-                "umbral": c.umbral,
+                "umbral_min": c.umbral_min,
+                "umbral_max": c.umbral_max,
             }
             for c in problema.criterios
         ],

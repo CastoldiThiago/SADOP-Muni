@@ -98,37 +98,32 @@ def dominacion(A: np.ndarray, sentidos: list[Sentido]) -> ResultadoDominacion:
 
 def satisfaccion(
     A: np.ndarray,
-    sentidos: list[Sentido],
-    umbrales: list[float | None],
+    minimos: list[float | None],
+    maximos: list[float | None],
 ) -> ResultadoSatisfaccion:
     """Preanálisis de satisfacción (sección 10).
 
-    Descarta las alternativas que no alcanzan los niveles de aspiración del
-    decisor. Un umbral ``None`` significa que ese criterio no impone
-    restricción. Para un criterio a maximizar se exige ``a_ij >= umbral``;
-    para uno a minimizar, ``a_ij <= umbral``.
+    Descarta las alternativas que quedan fuera del rango aceptable de algún
+    criterio: por debajo de su piso (``minimos``) o por encima de su techo
+    (``maximos``). ``None`` significa que ese lado no tiene límite.
 
     Es un filtro **no compensatorio**: un desempeño excelente en un criterio
-    no rescata a una alternativa que no llega al mínimo en otro.
+    no rescata a una alternativa que queda fuera del rango en otro.
     """
     A = np.asarray(A, dtype=float)
-    if len(umbrales) != A.shape[1]:
+    if not len(minimos) == len(maximos) == A.shape[1]:
         raise ValueError(
             f"La matriz tiene {A.shape[1]} criterios pero se recibieron "
-            f"{len(umbrales)} umbrales."
+            f"{len(minimos)} pisos y {len(maximos)} techos."
         )
 
     incumple: dict[int, list[int]] = {}
     for i in range(A.shape[0]):
         fallas = [
             j
-            for j, umbral in enumerate(umbrales)
-            if umbral is not None
-            and (
-                A[i, j] < umbral
-                if Sentido(sentidos[j]) is Sentido.MAXIMIZAR
-                else A[i, j] > umbral
-            )
+            for j in range(A.shape[1])
+            if (minimos[j] is not None and A[i, j] < minimos[j])
+            or (maximos[j] is not None and A[i, j] > maximos[j])
         ]
         if fallas:
             incumple[i] = fallas
@@ -136,6 +131,24 @@ def satisfaccion(
     descartadas = sorted(incumple)
     satisfacen = [i for i in range(A.shape[0]) if i not in incumple]
     return ResultadoSatisfaccion(satisfacen, descartadas, incumple)
+
+
+def satisfaccion_del_problema(problema: ProblemaDecision) -> ResultadoSatisfaccion | None:
+    """Satisfacción con los umbrales de los criterios, o ``None`` si no hay."""
+    minimos = [c.umbral_min for c in problema.criterios]
+    maximos = [c.umbral_max for c in problema.criterios]
+    if all(u is None for u in minimos + maximos):
+        return None
+    return satisfaccion(problema.matriz(), minimos, maximos)
+
+
+def motivo(valor: float, minimo: float | None, maximo: float | None) -> str:
+    """Por qué un valor queda fuera del rango, en palabras."""
+    if minimo is not None and valor < minimo:
+        return f"{valor:g}, por debajo del mínimo {minimo:g}"
+    if maximo is not None and valor > maximo:
+        return f"{valor:g}, por encima del máximo {maximo:g}"
+    return f"{valor:g}, dentro del rango"
 
 
 # ------------------------------------------------------- informe legible
@@ -160,18 +173,17 @@ def informe(problema: ProblemaDecision) -> list[str]:
     else:
         lineas.append("Ninguna alternativa está dominada: todas son eficientes.")
 
-    umbrales = [c.umbral for c in problema.criterios]
-    if any(u is not None for u in umbrales):
-        sat = satisfaccion(A, sentidos, umbrales)
+    sat = satisfaccion_del_problema(problema)
+    if sat is None:
+        lineas.append("No se fijaron umbrales de satisfacción.")
+    else:
         for i, fallas in sat.incumple.items():
             detalle = ", ".join(
-                f"{crits[j]} ({A[i, j]:g} vs. umbral {umbrales[j]:g})" for j in fallas
+                f"{crits[j]} ({motivo(A[i, j], *_rango(problema, j))})" for j in fallas
             )
             lineas.append(f"'{nombres[i]}' no satisface: {detalle}.")
         if not sat.descartadas:
-            lineas.append("Todas las alternativas alcanzan los umbrales fijados.")
-    else:
-        lineas.append("No se fijaron umbrales de satisfacción.")
+            lineas.append("Todas las alternativas están dentro de los umbrales fijados.")
 
     return lineas
 
@@ -187,10 +199,15 @@ def sobrevivientes(problema: ProblemaDecision) -> list[int]:
     sentidos = problema.sentidos
     eficientes = set(dominacion(A, sentidos).eficientes)
 
-    umbrales = [c.umbral for c in problema.criterios]
-    if any(u is not None for u in umbrales):
-        eficientes &= set(satisfaccion(A, sentidos, umbrales).satisfacen)
+    sat = satisfaccion_del_problema(problema)
+    if sat is not None:
+        eficientes &= set(sat.satisfacen)
 
     if len(eficientes) < 2:
         return dominacion(A, sentidos).eficientes
     return sorted(eficientes)
+
+
+def _rango(problema: ProblemaDecision, j: int) -> tuple[float | None, float | None]:
+    c = problema.criterios[j]
+    return c.umbral_min, c.umbral_max

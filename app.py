@@ -44,7 +44,7 @@ from core.pesos import (
     prioridades,
     sugerencias,
 )
-from core.preanalisis import dominacion, satisfaccion
+from core.preanalisis import dominacion, motivo, satisfaccion_del_problema
 from models import (
     ContextoEvaluacion,
     ErrorDeEvaluacion,
@@ -147,8 +147,9 @@ def paso_definicion(p: ProblemaDecision) -> None:
     st.subheader("Criterios")
     st.caption(
         "El **sentido** indica si conviene un valor alto (maximizar) o bajo "
-        "(minimizar). El **umbral** es opcional: fija el nivel mínimo "
-        "aceptable para el preanálisis de satisfacción."
+        "(minimizar). Los **umbrales** son opcionales y definen el rango "
+        "aceptable para el preanálisis de satisfacción: una alternativa por "
+        "debajo del mínimo o por encima del máximo queda descartada."
     )
     crits = st.data_editor(
         pd.DataFrame(
@@ -159,7 +160,8 @@ def paso_definicion(p: ProblemaDecision) -> None:
                     "sentido": c.sentido.value,
                     "unidad": c.unidad,
                     "escala": c.escala.value,
-                    "umbral": c.umbral,
+                    "umbral_min": c.umbral_min,
+                    "umbral_max": c.umbral_max,
                     "descripcion": c.descripcion,
                 }
                 for c in p.criterios
@@ -175,13 +177,39 @@ def paso_definicion(p: ProblemaDecision) -> None:
             "escala": st.column_config.SelectboxColumn(
                 options=[e.value for e in Escala], required=True
             ),
-            "umbral": st.column_config.NumberColumn(help="Vacío = sin restricción"),
+            "umbral_min": st.column_config.NumberColumn(
+                "mínimo", help="Piso del rango aceptable. Vacío = sin piso."
+            ),
+            "umbral_max": st.column_config.NumberColumn(
+                "máximo", help="Techo del rango aceptable. Vacío = sin techo."
+            ),
         },
     )
+    for error in p.errores_de_umbrales():
+        st.error(error)
 
+    if _hay_ediciones("editor_alternativas") or _hay_ediciones("editor_criterios"):
+        st.warning(
+            "Hay cambios sin aplicar. Tocá **Aplicar cambios** antes de pasar a "
+            "otro paso: si no, se pierden."
+        )
     if st.button("Aplicar cambios", type="primary"):
         _aplicar(p, alts, crits)
+        # Las ediciones ya forman parte del problema: se descartan para que el
+        # editor arranque limpio y el aviso de cambios pendientes desaparezca.
+        for clave in ("editor_alternativas", "editor_criterios"):
+            st.session_state.pop(clave, None)
         st.rerun()
+
+
+def _hay_ediciones(clave: str) -> bool:
+    """Si un ``st.data_editor`` tiene cambios que todavía no se aplicaron."""
+    estado = st.session_state.get(clave) or {}
+    return any(estado.get(k) for k in ("edited_rows", "added_rows", "deleted_rows"))
+
+
+def _numero_o_nada(valor: object) -> float | None:
+    return None if valor is None or pd.isna(valor) else float(valor)
 
 
 def _aplicar(p: ProblemaDecision, alts: pd.DataFrame, crits: pd.DataFrame) -> None:
@@ -205,7 +233,8 @@ def _aplicar(p: ProblemaDecision, alts: pd.DataFrame, crits: pd.DataFrame) -> No
             unidad=str(r.get("unidad") or ""),
             escala=str(r.get("escala") or "razon"),
             descripcion=str(r.get("descripcion") or ""),
-            umbral=None if pd.isna(r.get("umbral")) else float(r["umbral"]),
+            umbral_min=_numero_o_nada(r.get("umbral_min")),
+            umbral_max=_numero_o_nada(r.get("umbral_max")),
         )
         for _, r in crits.iterrows()
         if str(r.get("id") or "").strip()
@@ -317,25 +346,41 @@ def paso_preanalisis(p: ProblemaDecision) -> None:
         st.info("Ninguna alternativa está dominada: todas son eficientes.")
 
     st.subheader("Satisfacción")
-    umbrales = [c.umbral for c in p.criterios]
-    if any(u is not None for u in umbrales):
-        sat = satisfaccion(A, sentidos, umbrales)
+    sat = satisfaccion_del_problema(p)
+    if sat is None:
+        st.info(
+            "No se fijaron umbrales. Se cargan en el paso 1, columnas *mínimo* "
+            "y *máximo*."
+        )
+    else:
+        rangos = [
+            f"{c.nombre}: {_rango_texto(c.umbral_min, c.umbral_max)}"
+            for c in p.criterios
+            if c.umbral_min is not None or c.umbral_max is not None
+        ]
+        st.caption("Rango aceptable — " + "; ".join(rangos) + ".")
         if sat.descartadas:
             for i, fallas in sat.incumple.items():
                 detalle = ", ".join(
-                    f"{p.criterios[j].nombre} = {A[i, j]:g} "
-                    f"(umbral {umbrales[j]:g})"
+                    f"{p.criterios[j].nombre} = "
+                    f"{motivo(A[i, j], p.criterios[j].umbral_min, p.criterios[j].umbral_max)}"
                     for j in fallas
                 )
-                st.write(f"**{nombres[i]}** no alcanza: {detalle}.")
+                st.write(f"**{nombres[i]}** queda fuera del rango: {detalle}.")
         else:
-            st.info("Todas las alternativas alcanzan los umbrales fijados.")
-    else:
-        st.info("No se fijaron umbrales. Se cargan en el paso 1, columna *umbral*.")
+            st.info("Todas las alternativas están dentro de los umbrales fijados.")
 
     quedan = sobrevivientes(p)
     st.subheader(f"Conjunto de elección: {len(quedan)} de {len(nombres)}")
     st.dataframe(p.tabla().iloc[quedan], width="stretch")
+
+
+def _rango_texto(minimo: float | None, maximo: float | None) -> str:
+    if minimo is not None and maximo is not None:
+        return f"entre {minimo:g} y {maximo:g}"
+    if minimo is not None:
+        return f"al menos {minimo:g}"
+    return f"como mucho {maximo:g}"
 
 
 # ------------------------------------------------------------------ paso 4
@@ -1079,6 +1124,52 @@ def grafico_barrido(p: ProblemaDecision, b: Barrido) -> go.Figure:
 # ------------------------------------------------------------------- shell
 
 
+def navegacion(paso: str) -> None:
+    """Botones al pie de cada paso para ir al anterior o al siguiente."""
+    i = PASOS.index(paso)
+    st.divider()
+    anterior, _, siguiente = st.columns([2, 1, 2])
+    if i > 0:
+        anterior.button(
+            f"← Anterior: {PASOS[i - 1]}",
+            on_click=_ir_a,
+            args=(PASOS[i - 1],),
+            width="stretch",
+            key="nav_anterior",
+        )
+    if i < len(PASOS) - 1:
+        siguiente.button(
+            f"Siguiente: {PASOS[i + 1]} →",
+            type="primary",
+            on_click=_ir_a,
+            args=(PASOS[i + 1],),
+            width="stretch",
+            key="nav_siguiente",
+        )
+
+
+def _volver_arriba() -> None:
+    """Lleva la vista al principio de la página.
+
+    Streamlit conserva la posición de desplazamiento entre ejecuciones: sin
+    esto, al pasar de paso con los botones del pie se vería el final del paso
+    nuevo. El contador cambia el contenido para que el script se vuelva a
+    ejecutar cada vez.
+    """
+    st.session_state.saltos = st.session_state.get("saltos", 0) + 1
+    st.html(
+        f"<script>/* {st.session_state.saltos} */"
+        "document.querySelector('section.stMain')?.scrollTo({top: 0});</script>",
+        unsafe_allow_javascript=True,
+    )
+
+
+def _ir_a(paso: str) -> None:
+    # Corre antes de la próxima ejecución: el menú lateral se dibuja ya
+    # posicionado en el paso nuevo.
+    st.session_state.paso = paso
+
+
 def main() -> None:
     p = problema()
     for clave, valor in CONFIG_INICIAL.items():
@@ -1088,7 +1179,7 @@ def main() -> None:
 
     st.sidebar.title("SADOP-Muni")
     st.sidebar.caption("Soporte a la decisión para priorizar obras públicas")
-    paso = st.sidebar.radio("Pasos", PASOS, label_visibility="collapsed")
+    paso = st.sidebar.radio("Pasos", PASOS, label_visibility="collapsed", key="paso")
 
     st.sidebar.divider()
     st.sidebar.metric("Alternativas", len(p.alternativas))
@@ -1129,6 +1220,10 @@ def main() -> None:
         PASOS[5]: paso_comparacion,
         PASOS[6]: paso_sensibilidad,
     }[paso](p)
+    navegacion(paso)
+    if st.session_state.get("paso_mostrado") != paso:
+        st.session_state.paso_mostrado = paso
+        _volver_arriba()
 
 
 if __name__ == "__main__":

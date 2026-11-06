@@ -71,9 +71,11 @@ SADOP-Muni/
 
 ## Flujo de la interfaz
 
-1. **Definición del problema**: alternativas, criterios, sentido y umbrales.
+1. **Definición del problema**: alternativas, criterios, sentido y rango
+   aceptable de cada criterio (umbral mínimo y máximo, ambos opcionales).
 2. **Matriz de decisión**: evaluaciones en unidades originales.
-3. **Preanálisis**: descarta dominadas y las que no alcanzan los umbrales.
+3. **Preanálisis**: descarta las dominadas y las que quedan fuera del rango
+   aceptable de algún criterio.
 4. **Pesos**: asignación directa o juicios de a pares en escala de Saaty, con
    λmax, IC, IA y RC. Si RC > 0,10, el **asistente de consistencia** muestra
    los juicios que más bajan el RC y permite aplicarlos con un clic.
@@ -85,6 +87,9 @@ SADOP-Muni/
 7. **Sensibilidad**: intervalo de pesos en el que la ganadora se mantiene,
    para cada criterio, y todas las combinaciones de método, normalización y
    política.
+
+Además del menú lateral, cada paso termina con botones para ir al anterior o
+al siguiente.
 
 ### AHP
 

@@ -42,7 +42,8 @@
       "unidad": "millones $",
       "escala": "razon",
       "descripcion": "Monto de contrato estimado a valores del anteproyecto.",
-      "umbral": 400
+      "umbral_min": null,
+      "umbral_max": 400
     },
     {
       "id": "beneficiarios",
@@ -51,7 +52,8 @@
       "unidad": "habitantes",
       "escala": "razon",
       "descripcion": "Habitantes alcanzados de forma directa por la obra.",
-      "umbral": null
+      "umbral_min": null,
+      "umbral_max": null
     },
     {
       "id": "plazo",
@@ -60,7 +62,8 @@
       "unidad": "meses",
       "escala": "razon",
       "descripcion": "Plazo de obra previsto en el pliego.",
-      "umbral": null
+      "umbral_min": null,
+      "umbral_max": null
     },
     {
       "id": "urgencia",
@@ -69,7 +72,8 @@
       "unidad": "1-5",
       "escala": "ordinal",
       "descripcion": "Prioridad relativa asignada según reclamos vecinales y diagnóstico social.",
-      "umbral": 3
+      "umbral_min": 3,
+      "umbral_max": null
     },
     {
       "id": "ambiental",
@@ -78,7 +82,8 @@
       "unidad": "1-5",
       "escala": "ordinal",
       "descripcion": "Afectación estimada durante y después de la obra (1 = despreciable, 5 = severa).",
-      "umbral": null
+      "umbral_min": null,
+      "umbral_max": null
     },
     {
       "id": "mantenimiento",
@@ -87,7 +92,8 @@
       "unidad": "millones $/año",
       "escala": "razon",
       "descripcion": "Erogación anual que la obra compromete una vez finalizada.",
-      "umbral": null
+      "umbral_min": null,
+      "umbral_max": null
     }
   ],
   "evaluaciones": {

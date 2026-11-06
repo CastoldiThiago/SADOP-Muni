@@ -50,9 +50,12 @@ class Criterio:
     unidad: str = ""
     escala: Escala = Escala.RAZON
     descripcion: str = ""
-    # Nivel de aspiración para el preanálisis de satisfacción (sección 10).
-    # None = el criterio no impone umbral.
-    umbral: float | None = None
+    # Niveles de aspiración para el preanálisis de satisfacción (sección 10):
+    # piso y techo del rango aceptable. None = ese lado no tiene límite. No
+    # dependen del sentido: un costo (a minimizar) puede tener techo por
+    # presupuesto y también piso, si por debajo no es una obra creíble.
+    umbral_min: float | None = None
+    umbral_max: float | None = None
 
     def __post_init__(self) -> None:
         self.sentido = Sentido(self.sentido)
@@ -234,7 +237,7 @@ class ProblemaDecision:
         Se devuelven todos los problemas juntos en vez de lanzar en el primero
         para poder mostrarlos de una sola vez en la interfaz.
         """
-        errores: list[str] = []
+        errores: list[str] = self.errores_de_umbrales()
 
         if len(self.alternativas) < 2:
             errores.append("Se requieren al menos 2 alternativas para decidir.")
@@ -266,6 +269,17 @@ class ProblemaDecision:
                         "las alternativas: no discrimina y conviene quitarlo."
                     )
         return errores
+
+    def errores_de_umbrales(self) -> list[str]:
+        """Criterios cuyo piso supera al techo: ninguna alternativa los cumple."""
+        return [
+            f"El criterio '{c.nombre}' tiene umbral mínimo ({c.umbral_min:g}) "
+            f"mayor que el máximo ({c.umbral_max:g})."
+            for c in self.criterios
+            if c.umbral_min is not None
+            and c.umbral_max is not None
+            and c.umbral_min > c.umbral_max
+        ]
 
     def es_valido(self) -> bool:
         return not self.validar()

@@ -24,7 +24,12 @@ from core.normalizacion import (  # noqa: E402
     por_suma,
     vectorial,
 )
-from core.preanalisis import dominacion, satisfaccion, sobrevivientes  # noqa: E402
+from core.preanalisis import (  # noqa: E402
+    dominacion,
+    motivo,
+    satisfaccion,
+    sobrevivientes,
+)
 
 # Matriz chica de referencia: 3 alternativas x 2 criterios.
 A = np.array([[100.0, 4.0], [200.0, 2.0], [400.0, 8.0]])
@@ -133,18 +138,55 @@ def test_alternativas_identicas_no_se_dominan():
     assert dominacion(M, MAXIMIZAR).dominadas == []
 
 
-def test_satisfaccion_aplica_umbrales_segun_el_sentido():
+def test_satisfaccion_aplica_piso_y_techo():
     M = np.array([[100.0, 5.0], [500.0, 5.0], [100.0, 1.0]])
-    sentidos = [Sentido.MINIMIZAR, Sentido.MAXIMIZAR]
-    res = satisfaccion(M, sentidos, [400.0, 3.0])
+    res = satisfaccion(M, [None, 3.0], [400.0, None])
     assert res.satisfacen == [0]
-    assert res.incumple[1] == [0]  # supera el tope de costo
-    assert res.incumple[2] == [1]  # no llega al mínimo del segundo criterio
+    assert res.incumple[1] == [0]  # supera el techo de costo
+    assert res.incumple[2] == [1]  # no llega al piso del segundo criterio
+
+
+def test_satisfaccion_admite_piso_y_techo_en_el_mismo_criterio():
+    # Costo entre 50 y 400: la obra de 30 queda afuera por demasiado chica y
+    # la de 500 por demasiado cara. Los bordes cuentan como dentro del rango.
+    M = np.array([[30.0], [50.0], [200.0], [400.0], [500.0]])
+    res = satisfaccion(M, [50.0], [400.0])
+    assert res.satisfacen == [1, 2, 3]
+    assert res.descartadas == [0, 4]
 
 
 def test_satisfaccion_ignora_criterios_sin_umbral():
     M = np.array([[1.0, 1.0], [2.0, 2.0]])
-    assert satisfaccion(M, MAXIMIZAR, [None, None]).descartadas == []
+    assert satisfaccion(M, [None, None], [None, None]).descartadas == []
+
+
+def test_motivo_explica_de_que_lado_falla():
+    assert "debajo del mínimo 50" in motivo(30, 50, 400)
+    assert "encima del máximo 400" in motivo(500, 50, 400)
+
+
+def test_validar_detecta_piso_mayor_que_techo():
+    p = cargar()
+    p.criterio("costo").umbral_min = 500
+    assert any("mínimo (500) mayor que el máximo (400)" in e for e in p.validar())
+
+
+def test_lee_casos_con_el_umbral_unico_anterior():
+    # Antes había un solo umbral: piso al maximizar, techo al minimizar.
+    from core.io_casos import desde_dict
+
+    p = desde_dict(
+        {
+            "alternativas": [{"id": "a", "nombre": "A"}],
+            "criterios": [
+                {"id": "costo", "nombre": "Costo", "sentido": "min", "umbral": 400},
+                {"id": "urg", "nombre": "Urgencia", "sentido": "max", "umbral": 3},
+            ],
+        }
+    )
+    costo, urgencia = p.criterios
+    assert (costo.umbral_min, costo.umbral_max) == (None, 400)
+    assert (urgencia.umbral_min, urgencia.umbral_max) == (3, None)
 
 
 # ----------------------------------------------------------- modelo y caso
@@ -217,7 +259,9 @@ def test_ida_y_vuelta_json_conserva_el_problema(tmp_path=None):
     assert q.titulo == p.titulo
     assert q.ids_criterios == p.ids_criterios
     assert np.allclose(q.matriz(), p.matriz())
-    assert [c.umbral for c in q.criterios] == [c.umbral for c in p.criterios]
+    assert [(c.umbral_min, c.umbral_max) for c in q.criterios] == [
+        (c.umbral_min, c.umbral_max) for c in p.criterios
+    ]
 
 
 if __name__ == "__main__":
