@@ -100,6 +100,38 @@ def test_modo_de_pesos_vuelve_a_directo_con_un_clic():
     assert at.session_state.problema.modo_pesos is ModoPesos.DIRECTO
 
 
+def test_calculos_con_cache_coinciden_con_los_directos():
+    import app
+    from core import a_json, cargar, sobrevivientes
+    from core.pesos import del_problema
+    from models import ContextoEvaluacion, obtener
+    from models.sensibilidad import barrido_peso, escenarios
+
+    p = cargar()
+    cfg = (
+        ("metodo", "ponderacion_lineal"), ("metrica", "m2"), ("ideal", "sentido"),
+        ("procedimiento", "maximo"), ("politica", "complemento"),
+        ("estimacion", "aproximada"), ("solo_eleccion", True),
+    )
+    ctx = ContextoEvaluacion(p, del_problema(p).pesos, indices=sobrevivientes(p))
+    directos = [barrido_peso(obtener("ponderacion_lineal"), ctx, j) for j in range(len(p.criterios))]
+    cacheados = app.calcular_barridos(a_json(p), cfg)
+    assert [b.cambios for b in cacheados] == [b.cambios for b in directos]
+    tabla = app.calcular_escenarios(a_json(p), cfg)
+    assert tabla["Ganadora"].tolist() == escenarios(ctx, app._metodos(dict(cfg)))["Ganadora"].tolist()
+
+
+def test_sensibilidad_cambia_de_criterio_sin_errores():
+    at = _app()
+    at.radio(key="paso").set_value(at.radio(key="paso").options[6]).run()
+    assert not at.exception
+    detalle = next(s for s in at.selectbox if s.label == "Ver el detalle de un criterio")
+    detalle.set_value(3).run()
+    assert not at.exception
+    # El cambio de ganadora de la urgencia social aparece en el detalle.
+    assert any("62.2%" in m.value for m in at.markdown)
+
+
 def test_aplicar_arma_un_caso_escribiendo_solo_los_nombres():
     import app
 

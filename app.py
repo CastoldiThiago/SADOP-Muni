@@ -690,28 +690,89 @@ def _aplicar_sugerencia(juicios: dict, i: str, j: str, valor: float, clave: str)
 # ------------------------------------------------------------------ paso 5
 
 
+def _metodo(cfg: dict) -> MetodoDMD:
+    opciones = {
+        "topsis": {"metrica": Metrica(cfg["metrica"]), "ideal": Ideal(cfg["ideal"])},
+        "ahp": {"estimacion": Estimacion(cfg["estimacion"])},
+    }.get(cfg["metodo"], {})
+    return obtener(cfg["metodo"], **opciones)
+
+
+def _metodos(cfg: dict) -> dict[str, MetodoDMD]:
+    metodos: dict[str, MetodoDMD] = {
+        "Ponderación Lineal": obtener("ponderacion_lineal"),
+        "AHP": obtener("ahp", estimacion=Estimacion(cfg["estimacion"])),
+    }
+    for m in Metrica:
+        metodos[f"TOPSIS {m.etiqueta.split(' ·')[0]}"] = obtener(
+            "topsis", metrica=m, ideal=Ideal(cfg["ideal"])
+        )
+    return metodos
+
+
+def config_actual() -> tuple[tuple[str, object], ...]:
+    """Opciones del análisis como tupla de valores simples, apta como clave de caché."""
+    cfg = st.session_state
+    return (
+        ("metodo", cfg.cfg_metodo),
+        ("metrica", Metrica(cfg.cfg_metrica).value),
+        ("ideal", Ideal(cfg.cfg_ideal).value),
+        ("procedimiento", Procedimiento(cfg.cfg_procedimiento).value),
+        ("politica", PoliticaMinimizar(cfg.cfg_politica).value),
+        ("estimacion", Estimacion(cfg.cfg_estimacion).value),
+        ("solo_eleccion", bool(cfg.cfg_solo_eleccion)),
+    )
+
+
 def metodo_actual() -> MetodoDMD:
     """Instancia el método elegido en el paso 5 con sus opciones."""
-    cfg = st.session_state
-    opciones = {
-        "topsis": {"metrica": cfg.cfg_metrica, "ideal": cfg.cfg_ideal},
-        "ahp": {"estimacion": cfg.cfg_estimacion},
-    }.get(cfg.cfg_metodo, {})
-    return obtener(cfg.cfg_metodo, **opciones)
+    return _metodo(dict(config_actual()))
 
 
 def metodos_principales() -> dict[str, MetodoDMD]:
     """Los métodos del capítulo, para comparar y para los escenarios."""
-    cfg = st.session_state
-    metodos: dict[str, MetodoDMD] = {
-        "Ponderación Lineal": obtener("ponderacion_lineal"),
-        "AHP": obtener("ahp", estimacion=cfg.cfg_estimacion),
-    }
-    for m in Metrica:
-        metodos[f"TOPSIS {m.etiqueta.split(' ·')[0]}"] = obtener(
-            "topsis", metrica=m, ideal=cfg.cfg_ideal
-        )
-    return metodos
+    return _metodos(dict(config_actual()))
+
+
+# Cálculos pesados con caché. Cada clic en Streamlit vuelve a ejecutar toda la
+# página: sin caché, la comparación y sobre todo la sensibilidad se recalculaban
+# en cada interacción y la app parecía tildada. La clave es el caso serializado
+# más las opciones, así que el resultado se reutiliza mientras nada cambie.
+
+
+def _contexto(caso_json: str, cfg: dict) -> ContextoEvaluacion:
+    import json
+
+    from core.io_casos import desde_dict
+
+    p = desde_dict(json.loads(caso_json))
+    return ContextoEvaluacion(
+        p,
+        del_problema(p, Estimacion(cfg["estimacion"])).pesos,
+        indices=sobrevivientes(p) if cfg["solo_eleccion"] else list(range(len(p.alternativas))),
+        procedimiento=Procedimiento(cfg["procedimiento"]),
+        politica=PoliticaMinimizar(cfg["politica"]),
+    )
+
+
+@st.cache_data(max_entries=32, show_spinner=False)
+def calcular_comparacion(caso_json: str, cfg: tuple) -> Comparacion:
+    cfg = dict(cfg)
+    return comparar(_contexto(caso_json, cfg), _metodos(cfg))
+
+
+@st.cache_data(max_entries=32, show_spinner=False)
+def calcular_barridos(caso_json: str, cfg: tuple) -> list[Barrido]:
+    cfg = dict(cfg)
+    ctx = _contexto(caso_json, cfg)
+    metodo = _metodo(cfg)
+    return [barrido_peso(metodo, ctx, j) for j in range(len(ctx.problema.criterios))]
+
+
+@st.cache_data(max_entries=32, show_spinner=False)
+def calcular_escenarios(caso_json: str, cfg: tuple) -> pd.DataFrame:
+    cfg = dict(cfg)
+    return escenarios(_contexto(caso_json, cfg), _metodos(cfg))
 
 
 def indices_a_evaluar(p: ProblemaDecision) -> list[int]:
@@ -933,7 +994,8 @@ def paso_comparacion(p: ProblemaDecision) -> None:
     ctx = preparar_evaluacion(p)
     if ctx is None:
         return
-    comp = comparar(ctx, metodos_principales())
+    with st.spinner("Evaluando el caso con los cinco métodos…", show_time=True):
+        comp = calcular_comparacion(a_json(p), config_actual())
     for metodo, motivo in comp.errores.items():
         st.warning(f"{metodo}: {motivo}")
     if comp.posiciones.empty:
@@ -1001,20 +1063,22 @@ def paso_sensibilidad(p: ProblemaDecision) -> None:
     ganadora = p.alternativas[actual.ganadora].nombre
     st.write(f"Configuración actual: **{actual.metodo}**. Alternativa preferida: **{ganadora}**.")
 
+    caso, cfg = a_json(p), config_actual()
     tab_pesos, tab_escenarios = st.tabs(["Frente a los pesos", "Frente a las elecciones del analista"])
     with tab_pesos:
-        _sensibilidad_pesos(p, metodo, ctx)
+        _sensibilidad_pesos(p, caso, cfg)
     with tab_escenarios:
-        _sensibilidad_escenarios(ctx, ganadora)
+        _sensibilidad_escenarios(ctx, ganadora, caso, cfg)
 
 
-def _sensibilidad_pesos(p: ProblemaDecision, metodo: MetodoDMD, ctx: ContextoEvaluacion) -> None:
+def _sensibilidad_pesos(p: ProblemaDecision, caso: str, cfg: tuple) -> None:
     st.caption(
         "Se varía el peso de un criterio de 0 a 100 % y los demás se reescalan "
         "conservando sus proporciones. El intervalo estable es el rango en el "
         "que la ganadora actual no cambia."
     )
-    barridos = [barrido_peso(metodo, ctx, j) for j in range(len(p.criterios))]
+    with st.spinner("Barriendo el peso de cada criterio de 0 a 100 %…", show_time=True):
+        barridos = calcular_barridos(caso, cfg)
 
     filas = []
     for b in barridos:
@@ -1073,6 +1137,13 @@ def _sensibilidad_pesos(p: ProblemaDecision, metodo: MetodoDMD, ctx: ContextoEva
             "(variando uno a la vez)."
         )
 
+    _detalle_barrido(p, barridos)
+
+
+@st.fragment
+def _detalle_barrido(p: ProblemaDecision, barridos: list[Barrido]) -> None:
+    """Gráfico de un criterio. Es un fragmento: cambiar de criterio redibuja
+    solo esta parte, sin volver a ejecutar el resto de la página."""
     nombres = [c.nombre for c in p.criterios]
     j = st.selectbox("Ver el detalle de un criterio", range(len(nombres)), format_func=lambda k: nombres[k])
     b = barridos[j]
@@ -1081,14 +1152,15 @@ def _sensibilidad_pesos(p: ProblemaDecision, metodo: MetodoDMD, ctx: ContextoEva
         st.write(f"- Con peso **{peso:.1%}**: {antes} → **{despues}**")
 
 
-def _sensibilidad_escenarios(ctx: ContextoEvaluacion, ganadora: str) -> None:
+def _sensibilidad_escenarios(ctx: ContextoEvaluacion, ganadora: str, caso: str, cfg: tuple) -> None:
     st.caption(
         "Se repite la evaluación con cada combinación de método, normalización "
         "y política para los criterios a minimizar, con los mismos pesos (las "
         "opciones que un método no usa no se varían). El capítulo advierte que "
         "estas elecciones pueden cambiar el resultado."
     )
-    tabla = escenarios(ctx, metodos_principales())
+    with st.spinner("Evaluando todas las combinaciones de método y normalización…", show_time=True):
+        tabla = calcular_escenarios(caso, cfg)
     validos = tabla["Ganadora"].notna().sum()
     gana = int((tabla["Ganadora"] == ganadora).sum())
     st.metric(f"Escenarios en los que gana {ganadora}", f"{gana} de {validos}")
@@ -1320,6 +1392,17 @@ def main() -> None:
     if st.sidebar.button("Nuevo caso en blanco", width="stretch", key="abrir_nuevo_caso"):
         _confirmar_caso_nuevo()
 
+    # Pantalla de carga general: aparece solo si el paso tarda en dibujarse
+    # (Streamlit la muestra después de una breve demora, así que no parpadea).
+    with st.spinner(f"Cargando {paso.split('· ')[-1].lower()}…", show_time=True):
+        _dibujar_paso(paso, p)
+    navegacion(paso)
+    if st.session_state.get("paso_mostrado") != paso:
+        st.session_state.paso_mostrado = paso
+        _volver_arriba()
+
+
+def _dibujar_paso(paso: str, p: ProblemaDecision) -> None:
     {
         PASOS[0]: paso_definicion,
         PASOS[1]: paso_matriz,
@@ -1329,10 +1412,6 @@ def main() -> None:
         PASOS[5]: paso_comparacion,
         PASOS[6]: paso_sensibilidad,
     }[paso](p)
-    navegacion(paso)
-    if st.session_state.get("paso_mostrado") != paso:
-        st.session_state.paso_mostrado = paso
-        _volver_arriba()
 
 
 if __name__ == "__main__":
