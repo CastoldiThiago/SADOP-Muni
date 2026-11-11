@@ -1,0 +1,117 @@
+{
+  "titulo": "TOPSIS — Problema inversiones (clase)",
+  "descripcion": "Ejemplo teórico de la cátedra. Planilla 'TOPSIS trabajo en clase.xlsx', hojas G4, G5, G6, G7, Grupo 9, Grupo 10 y grupo11. Configuración: TOPSIS, m2 euclídea, ideal de clase, normalización vectorial, evaluando TODAS las alternativas (A está dominada por B). Resultado de la planilla: B 0,6544 · E 0,6208 · D 0,5661 · C 0,3793 · A 0,2856.",
+  "decisor": "Trabajo en clase",
+  "alternativas": [
+    {
+      "id": "A",
+      "nombre": "A",
+      "descripcion": ""
+    },
+    {
+      "id": "B",
+      "nombre": "B",
+      "descripcion": ""
+    },
+    {
+      "id": "C",
+      "nombre": "C",
+      "descripcion": ""
+    },
+    {
+      "id": "D",
+      "nombre": "D",
+      "descripcion": ""
+    },
+    {
+      "id": "E",
+      "nombre": "E",
+      "descripcion": ""
+    }
+  ],
+  "criterios": [
+    {
+      "id": "VAN",
+      "nombre": "VAN",
+      "sentido": "max",
+      "unidad": "",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    },
+    {
+      "id": "NE",
+      "nombre": "NE",
+      "sentido": "max",
+      "unidad": "",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    },
+    {
+      "id": "PE",
+      "nombre": "PE",
+      "sentido": "max",
+      "unidad": "",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    },
+    {
+      "id": "II",
+      "nombre": "II",
+      "sentido": "min",
+      "unidad": "",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    }
+  ],
+  "evaluaciones": {
+    "A": {
+      "VAN": 100,
+      "NE": 7,
+      "PE": 6,
+      "II": 1800
+    },
+    "B": {
+      "VAN": 200,
+      "NE": 8,
+      "PE": 6,
+      "II": 1600
+    },
+    "C": {
+      "VAN": 100,
+      "NE": 4,
+      "PE": 8,
+      "II": 1200
+    },
+    "D": {
+      "VAN": 200,
+      "NE": 6,
+      "PE": 10,
+      "II": 2500
+    },
+    "E": {
+      "VAN": 250,
+      "NE": 9,
+      "PE": 8,
+      "II": 3000
+    }
+  },
+  "pesos": {
+    "modo": "directo",
+    "directos": {
+      "VAN": 5,
+      "NE": 1,
+      "PE": 2,
+      "II": 3
+    },
+    "comparaciones": {},
+    "alternativas": {}
+  }
+}

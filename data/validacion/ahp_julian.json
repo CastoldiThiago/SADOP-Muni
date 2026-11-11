@@ -1,0 +1,91 @@
+{
+  "titulo": "AHP — Universidad de posgrado de Julián (clase)",
+  "descripcion": "Planilla 'Trabajo en clase AHP 2025.xlsx' (hojas G4, G5, Grupo 6, G7, Grupo 8, Grupo 9, G10). El enunciado no trae datos de la matriz: se cargaron las prioridades de cada universidad para que las columnas no queden constantes, pero en AHP se usan los juicios de a pares. Configuración: AHP, estimación aproximada, todas las alternativas. Planilla: pesos M 0,5679 · P 0,3339 · C 0,0982; λmáx 3,0247, IC 0,0123, RC 0,0213; evaluación global A 0,5745 · B 0,4255.",
+  "decisor": "Trabajo en clase",
+  "alternativas": [
+    {
+      "id": "A",
+      "nombre": "Universidad A",
+      "descripcion": ""
+    },
+    {
+      "id": "B",
+      "nombre": "Universidad B",
+      "descripcion": ""
+    }
+  ],
+  "criterios": [
+    {
+      "id": "M",
+      "nombre": "Monto de la beca",
+      "sentido": "max",
+      "unidad": "",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    },
+    {
+      "id": "P",
+      "nombre": "Prestigio de la institución",
+      "sentido": "max",
+      "unidad": "",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    },
+    {
+      "id": "C",
+      "nombre": "Calidad de vida de la ciudad",
+      "sentido": "max",
+      "unidad": "",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    }
+  ],
+  "evaluaciones": {
+    "A": {
+      "M": 0.75,
+      "P": 0.2,
+      "C": 0.8333333333333334
+    },
+    "B": {
+      "M": 0.25,
+      "P": 0.8,
+      "C": 0.16666666666666666
+    }
+  },
+  "pesos": {
+    "modo": "ahp",
+    "directos": {},
+    "comparaciones": {
+      "M": {
+        "P": 2,
+        "C": 5
+      },
+      "P": {
+        "C": 4
+      }
+    },
+    "alternativas": {
+      "M": {
+        "A": {
+          "B": 3
+        }
+      },
+      "P": {
+        "A": {
+          "B": 0.25
+        }
+      },
+      "C": {
+        "A": {
+          "B": 5
+        }
+      }
+    }
+  }
+}

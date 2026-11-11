@@ -1,0 +1,214 @@
+{
+  "titulo": "TOPSIS — Sucursales (clase, Grupo 8)",
+  "descripcion": "Planilla 'TOPSIS trabajo en clase.xlsx', hoja Grupo 8. Configuración: TOPSIS, m2 euclídea, ideal de clase, normalización proporcional a la suma, evaluando TODAS las alternativas. Resultado de la planilla: Suc. 3 0,5642 · Suc. 8 0,5474 · Suc. 4 0,5212 · Suc. 7 0,5051 · Suc. 5 0,4769 · Suc. 6 0,4499 · Suc. 10 0,4308 · Suc. 9 0,4182 · Suc. 1 0,4091 · Suc. 2 0,3931.",
+  "decisor": "Trabajo en clase",
+  "alternativas": [
+    {
+      "id": "s1",
+      "nombre": "Sucursal 1",
+      "descripcion": ""
+    },
+    {
+      "id": "s2",
+      "nombre": "Sucursal 2",
+      "descripcion": ""
+    },
+    {
+      "id": "s3",
+      "nombre": "Sucursal 3",
+      "descripcion": ""
+    },
+    {
+      "id": "s4",
+      "nombre": "Sucursal 4",
+      "descripcion": ""
+    },
+    {
+      "id": "s5",
+      "nombre": "Sucursal 5",
+      "descripcion": ""
+    },
+    {
+      "id": "s6",
+      "nombre": "Sucursal 6",
+      "descripcion": ""
+    },
+    {
+      "id": "s7",
+      "nombre": "Sucursal 7",
+      "descripcion": ""
+    },
+    {
+      "id": "s8",
+      "nombre": "Sucursal 8",
+      "descripcion": ""
+    },
+    {
+      "id": "s9",
+      "nombre": "Sucursal 9",
+      "descripcion": ""
+    },
+    {
+      "id": "s10",
+      "nombre": "Sucursal 10",
+      "descripcion": ""
+    }
+  ],
+  "criterios": [
+    {
+      "id": "C",
+      "nombre": "Número de clientes al cierre",
+      "sentido": "max",
+      "unidad": "clientes",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    },
+    {
+      "id": "GRH",
+      "nombre": "Gastos en RRHH",
+      "sentido": "min",
+      "unidad": "miles $/año",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    },
+    {
+      "id": "OG",
+      "nombre": "Otros gastos",
+      "sentido": "min",
+      "unidad": "miles $/año",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    },
+    {
+      "id": "Y",
+      "nombre": "Ingresos netos",
+      "sentido": "max",
+      "unidad": "miles $/año",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    },
+    {
+      "id": "RM",
+      "nombre": "% recupero de mora",
+      "sentido": "max",
+      "unidad": "%",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    },
+    {
+      "id": "ISC",
+      "nombre": "Índice de satisfacción de clientes",
+      "sentido": "max",
+      "unidad": "",
+      "escala": "razon",
+      "descripcion": "",
+      "umbral_min": null,
+      "umbral_max": null
+    }
+  ],
+  "evaluaciones": {
+    "s1": {
+      "C": 11523,
+      "GRH": 776,
+      "OG": 386,
+      "Y": 5298,
+      "RM": 72,
+      "ISC": 13.35
+    },
+    "s2": {
+      "C": 10925,
+      "GRH": 826,
+      "OG": 515,
+      "Y": 5763,
+      "RM": 68,
+      "ISC": 13.09
+    },
+    "s3": {
+      "C": 41987,
+      "GRH": 436,
+      "OG": 298,
+      "Y": 3121,
+      "RM": 83,
+      "ISC": 13.04
+    },
+    "s4": {
+      "C": 15216,
+      "GRH": 919,
+      "OG": 683,
+      "Y": 11420,
+      "RM": 52,
+      "ISC": 13.35
+    },
+    "s5": {
+      "C": 20030,
+      "GRH": 993,
+      "OG": 644,
+      "Y": 9157,
+      "RM": 71,
+      "ISC": 13.35
+    },
+    "s6": {
+      "C": 11585,
+      "GRH": 634,
+      "OG": 399,
+      "Y": 5821,
+      "RM": 68,
+      "ISC": 13.09
+    },
+    "s7": {
+      "C": 23567,
+      "GRH": 1603,
+      "OG": 1191,
+      "Y": 16242,
+      "RM": 66,
+      "ISC": 12.78
+    },
+    "s8": {
+      "C": 30378,
+      "GRH": 1319,
+      "OG": 742,
+      "Y": 12569,
+      "RM": 62,
+      "ISC": 13.26
+    },
+    "s9": {
+      "C": 5964,
+      "GRH": 499,
+      "OG": 282,
+      "Y": 2703,
+      "RM": 47,
+      "ISC": 13.78
+    },
+    "s10": {
+      "C": 9012,
+      "GRH": 588,
+      "OG": 269,
+      "Y": 4256,
+      "RM": 67,
+      "ISC": 13.22
+    }
+  },
+  "pesos": {
+    "modo": "directo",
+    "directos": {
+      "C": 5,
+      "GRH": 8,
+      "OG": 3,
+      "Y": 7,
+      "RM": 1,
+      "ISC": 9
+    },
+    "comparaciones": {},
+    "alternativas": {}
+  }
+}

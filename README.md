@@ -62,10 +62,13 @@ SADOP-Muni/
 │   ├── topsis.py             Secc. 16
 │   ├── comparacion.py        Mismo caso, distintos métodos
 │   └── sensibilidad.py       Barrido de pesos y escenarios
-├── data/caso_ejemplo.json    Caso de referencia: 6 obras, 6 criterios, pesos
+├── data/
+│   ├── caso_ejemplo.json     Caso de referencia: 6 obras, 6 criterios, pesos
+│   └── validacion/           Ejercicios de clase como casos JSON
 ├── tests/
 │   ├── test_base.py          Base independiente del método
 │   ├── test_metodos.py       Pesos, métodos y sensibilidad vs. el capítulo
+│   ├── test_clase.py         Métodos vs. las planillas de clase
 │   └── test_app.py           Interfaz (AppTest): caso en blanco y pesos
 └── docs/                     Planes, bibliografía y entregas (informe y manual)
 ```
@@ -150,6 +153,25 @@ los valores intermedios. Para tener en cuenta en la defensa:
 También se comprueba lo que el capítulo afirma sin demostrar: TOPSIS con
 métrica m1 ordena igual que la Ponderación Lineal. Además se resuelve el
 ejercicio que propone el libro: con m∞, el Proyecto 3 desplaza al 1.
+
+## Validación contra los trabajos de clase
+
+`tests/test_clase.py` reproduce ejercicios resueltos en las planillas de clase
+(diferencias menores a 1e-6). Las planillas no se suben al repositorio porque
+incluyen actividades evaluativas de la materia. Cada ejercicio está en
+`data/validacion/` como caso JSON para cargarlo desde la barra lateral; la
+descripción del caso dice qué opciones elegir y qué resultado da la planilla.
+
+| Caso | Configuración | Resultado de la planilla |
+|---|---|---|
+| `topsis_inversiones.json` | TOPSIS m2, ideal de clase, vectorial | B 0,6544 · E 0,6208 · D 0,5661 · C 0,3793 · A 0,2856 |
+| `topsis_sucursales.json` | TOPSIS m2, ideal de clase, por la suma | Suc. 3 0,5642 · Suc. 8 0,5474 · … · Suc. 2 0,3931 |
+| `ahp_julian.json` | AHP aproximado | pesos 0,5679 / 0,3339 / 0,0982; RC 0,0213; A 0,5745 · B 0,4255 |
+
+Para obtener esos números en la interfaz hay que **destildar "Evaluar solo el
+conjunto de elección"** en el paso 5: los ejercicios de clase evalúan todas
+las alternativas, y en el de inversiones A está dominada por B, así que el
+preanálisis la descarta y cambia la normalización.
 
 ## Decisiones de diseño
 
